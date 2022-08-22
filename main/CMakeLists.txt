@@ -3,5 +3,6 @@ idf_component_register(
         "main.c" 
         "mqtt/mqtt.c"
         "networking/networking.c"
+        "sensors/pressure/sensors_pressure.c"
     INCLUDE_DIRS ""
 )

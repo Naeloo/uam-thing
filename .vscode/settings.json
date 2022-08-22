@@ -17,6 +17,8 @@
         "*.inc": "c",
         "regex": "cpp",
         "*.ipp": "c",
-        "ratio": "c"
+        "ratio": "c",
+        "sensors_pressure.h": "c",
+        "sstream": "c"
     }
 }
