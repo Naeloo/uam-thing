@@ -13,6 +13,7 @@
 #include "networking/networking.h"
 #include "sensors/sensors.h"
 #include "sensors/pressure/sensors_pressure.h"
+#include "sensors/flow/sensors_flow.h"
 
 static const char* TAG = "Main";
 
@@ -45,6 +46,8 @@ void app_main(void)
     ESP_LOGI(TAG, "Initializing components");
     mqtt_init();
     networking_init();
-    sensors_pressure_init();
-    sensors_pressure_start();
+    //sensors_pressure_init();
+    sensors_flow_init();
+    sensors_flow_start();
+    //sensors_pressure_start();
 }
