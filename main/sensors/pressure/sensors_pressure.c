@@ -1,7 +1,7 @@
 #include "sensors_pressure.h"
 
 struct pressure_sensor sensors[PRESSURE_SENSORS_COUNT] = {
-    { .id = "p1", .channel = ADC1_CHANNEL_0 }
+    { .id = "p1", .channel = ADC1_CHANNEL_6 }
 };
 TaskHandle_t measureHandle = NULL;
 sensors_pressure_handler reading_handler = NULL;
