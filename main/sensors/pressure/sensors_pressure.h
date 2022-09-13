@@ -14,6 +14,7 @@ typedef void (*sensors_pressure_handler)(pressure_sensor* sensor, int reading);
 
 void sensors_pressure_init();
 void sensors_pressure_start();
-void sensors_pressure_measure();
+void sensors_pressure_stop();
 
+void sensors_pressure_measure();
 void sensors_pressure_on_reading(sensors_pressure_handler h);
