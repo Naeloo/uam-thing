@@ -72,6 +72,10 @@ void sensors_flow_measure() {
             // Select channel of sensor and read value
             tca_select_channel(flow_sensors[i].channel);
             uint16_t value = sfm_read_measure();
+            if(value == FLOW_VALUE_INVALID) {
+                ESP_LOGW(TAG, "Skipped flow value due to incorrect CRC");
+                continue;
+            }
             ESP_LOGI(TAG, "%u", value);
         }
         // Wait for next readings
@@ -97,18 +101,22 @@ uint32_t sfm_read_serial() {
     uint8_t serial_cmd[] = { 0x31, 0xAE };
     esp_err_t write_err = i2c_master_write_to_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, serial_cmd, sizeof(serial_cmd), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
     if(write_err != ESP_OK) { return FLOW_SERIAL_INVALID; }
-    // Read the 4 byte serial number
-    uint8_t serial_buf[4];
+    // Read the 4 byte serial number + 2 CRC bytes [serial, serial, crc, serial, serial, crc]
+    uint8_t serial_buf[6];
     esp_err_t read_err = i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, serial_buf, sizeof(serial_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
     if(read_err != ESP_OK) { return FLOW_SERIAL_INVALID; }
+    // Verify both CRC values
+    if(sfm_crc(&serial_buf[0], 2, serial_buf[2]) != ESP_OK || sfm_crc(&serial_buf[3], 2, serial_buf[5]) != ESP_OK) { return FLOW_SERIAL_INVALID; }
     // Convert to 32 bit number and return
-    uint32_t serial_no = serial_buf[0] | serial_buf[1] << 8 | serial_buf[2] << 16 | serial_buf[3] << 24;
+    uint32_t serial_no = serial_buf[0] | serial_buf[1] << 8 | serial_buf[3] << 16 | serial_buf[4] << 24;
     return serial_no;
 }
 uint16_t sfm_read_measure() {
-    // Read the 2 byte raw measurement value
-    uint8_t value_buf[2];
+    // Read the 2 byte raw measurement value + 1 byte CRC
+    uint8_t value_buf[3];
     i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, value_buf, sizeof(value_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    // Verify the CRC value
+    if(sfm_crc(&value_buf[0], 2, value_buf[3]) != ESP_OK) { return FLOW_VALUE_INVALID; }
     // Convert to 16 bit number and return
     uint16_t value = value_buf[0] | value_buf[1] << 8;
     return value;
@@ -122,4 +130,19 @@ esp_err_t sfm_reset() {
     // Send the reset command, this also stops measurement
     uint8_t serial_cmd[] = { 0x20, 0x00 };
     return i2c_master_write_to_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, serial_cmd, sizeof(serial_cmd), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+}
+
+esp_err_t sfm_crc(const uint8_t* buf, uint8_t buf_len, uint8_t checksum) {
+    // TODO: Maybe generate table for this
+    uint8_t crc = 0;
+    // Calculates 8-Bit checksum with given polynomial
+    for (uint8_t i = 0; i < buf_len; ++i) { 
+        crc ^= (buf[i]);
+        for (uint8_t bit = 8; bit > 0; --bit) {
+            if (crc & 0x80) crc = (crc << 1) ^ 0x131;
+            else crc = (crc << 1);
+        }
+    }
+    if (crc != checksum) return ESP_ERR_INVALID_CRC;
+    else return ESP_OK;
 }

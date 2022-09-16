@@ -16,6 +16,7 @@
 
 #define FLOW_SENSORS_COUNT          4
 #define FLOW_SERIAL_INVALID         0
+#define FLOW_VALUE_INVALID          65535
 
 typedef struct flow_sensor {
     char id[3];
@@ -37,3 +38,4 @@ uint32_t sfm_read_serial();
 esp_err_t sfm_start_measure();
 uint16_t sfm_read_measure();
 esp_err_t sfm_reset();
+esp_err_t sfm_crc(const uint8_t* buf, uint8_t buf_len, uint8_t checksum);
