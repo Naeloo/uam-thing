@@ -16,7 +16,8 @@
 
 #define FLOW_SENSORS_COUNT          4
 #define FLOW_SERIAL_INVALID         0
-#define FLOW_VALUE_INVALID          65535
+#define FLOW_VALUE_INVALID_CRC      65535
+#define FLOW_VALUE_NOT_AVAIL        65534
 
 typedef struct flow_sensor {
     char id[3];

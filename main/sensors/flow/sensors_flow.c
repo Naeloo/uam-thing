@@ -73,8 +73,11 @@ void sensors_flow_measure() {
             tca_select_channel(flow_sensors[i].channel);
             uint16_t value = sfm_read_measure();
             if(value == FLOW_VALUE_INVALID) {
-                ESP_LOGW(TAG, "Skipped flow value due to incorrect CRC");
+                ESP_LOGW(TAG, "Skipped flow value: incorrect CRC");
                 continue;
+            }
+            if(value == FLOW_VALUE_NOT_AVAIL) {
+                ESP_LOGW(TAG, "Skipped flow value: no data available / read error");
             }
             ESP_LOGI(TAG, "%u", value);
         }
@@ -114,9 +117,10 @@ uint32_t sfm_read_serial() {
 uint16_t sfm_read_measure() {
     // Read the 2 byte raw measurement value + 1 byte CRC
     uint8_t value_buf[3];
-    i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, value_buf, sizeof(value_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    esp_err_t read_err = i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, value_buf, sizeof(value_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    if(read_err != ESP_OK) { return FLOW_VALUE_NOT_AVAIL; }
     // Verify the CRC value
-    if(sfm_crc(&value_buf[0], 2, value_buf[3]) != ESP_OK) { return FLOW_VALUE_INVALID; }
+    if(sfm_crc(&value_buf[0], 2, value_buf[3]) != ESP_OK) { return FLOW_VALUE_INVALID_CRC; }
     // Convert to 16 bit number and return
     uint16_t value = value_buf[0] | value_buf[1] << 8;
     return value;
