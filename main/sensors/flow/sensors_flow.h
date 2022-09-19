@@ -23,6 +23,8 @@ typedef struct flow_sensor {
     char id[3];
     uint8_t channel;
     uint32_t serial;
+    uint16_t offset;
+    uint16_t scale;
 } flow_sensor;
 
 typedef void (*sensors_flow_handler)(flow_sensor* sensor, int reading);
@@ -36,6 +38,8 @@ void sensors_flow_on_reading(sensors_flow_handler h);
 
 void tca_select_channel(uint8_t channel);
 uint32_t sfm_read_serial();
+uint16_t sfm_read_offset();
+uint16_t sfm_read_scale();
 esp_err_t sfm_start_measure();
 uint16_t sfm_read_measure();
 esp_err_t sfm_reset();

@@ -3,10 +3,10 @@
 static const char* TAG = "SensorsFlow";
 
 struct flow_sensor flow_sensors[FLOW_SENSORS_COUNT] = {
-    { .id = "q1", .channel = 0, .serial = FLOW_SERIAL_INVALID },
-    { .id = "q2", .channel = 1, .serial = FLOW_SERIAL_INVALID },
-    { .id = "q3", .channel = 2, .serial = FLOW_SERIAL_INVALID },
-    { .id = "q4", .channel = 3, .serial = FLOW_SERIAL_INVALID }
+    { .id = "q1", .channel = 0, .serial = FLOW_SERIAL_INVALID, .offset = FLOW_SERIAL_INVALID, .scale = FLOW_SERIAL_INVALID },
+    { .id = "q2", .channel = 1, .serial = FLOW_SERIAL_INVALID, .offset = FLOW_SERIAL_INVALID, .scale = FLOW_SERIAL_INVALID },
+    { .id = "q3", .channel = 2, .serial = FLOW_SERIAL_INVALID, .offset = FLOW_SERIAL_INVALID, .scale = FLOW_SERIAL_INVALID },
+    { .id = "q4", .channel = 3, .serial = FLOW_SERIAL_INVALID, .offset = FLOW_SERIAL_INVALID, .scale = FLOW_SERIAL_INVALID }
 };
 TaskHandle_t flow_measure_handle = NULL;
 sensors_flow_handler flow_reading_handler = NULL;
@@ -27,8 +27,10 @@ void sensors_flow_init() {
     for(int i = 0; i < FLOW_SENSORS_COUNT; i++) {
         tca_select_channel(flow_sensors[i].channel);
         flow_sensors[i].serial = sfm_read_serial();
-        if(flow_sensors[i].serial != FLOW_SERIAL_INVALID) {
-            ESP_LOGI(TAG, "SFM Sensor %s available on channel %u, Serial: %u", flow_sensors[i].id, flow_sensors[i].channel, flow_sensors[i].serial);
+        flow_sensors[i].offset = sfm_read_offset();
+        flow_sensors[i].scale = sfm_read_scale();
+        if(flow_sensors[i].serial != FLOW_SERIAL_INVALID && flow_sensors[i].offset != FLOW_SERIAL_INVALID && flow_sensors[i].scale != FLOW_SERIAL_INVALID) {
+            ESP_LOGI(TAG, "SFM Sensor %s available on channel %u, Serial: %u, Offset: %u, Scale: %u", flow_sensors[i].id, flow_sensors[i].channel, flow_sensors[i].serial, flow_sensors[i].offset, flow_sensors[i].scale);
         }else{
             ESP_LOGI(TAG, "SFM Sensors %s unavailable on channel %u", flow_sensors[i].id, flow_sensors[i].channel);
         }
@@ -72,14 +74,15 @@ void sensors_flow_measure() {
             // Select channel of sensor and read value
             tca_select_channel(flow_sensors[i].channel);
             uint16_t value = sfm_read_measure();
-            if(value == FLOW_VALUE_INVALID) {
+            if(value == FLOW_VALUE_INVALID_CRC) {
                 ESP_LOGW(TAG, "Skipped flow value: incorrect CRC");
                 continue;
             }
             if(value == FLOW_VALUE_NOT_AVAIL) {
                 ESP_LOGW(TAG, "Skipped flow value: no data available / read error");
             }
-            ESP_LOGI(TAG, "%u", value);
+            float value_slm = (value - flow_sensors[i].offset) / flow_sensors[i].scale;
+            ESP_LOGI(TAG, "%.2f SLM", value_slm);
         }
         // Wait for next readings
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -111,18 +114,45 @@ uint32_t sfm_read_serial() {
     // Verify both CRC values
     if(sfm_crc(&serial_buf[0], 2, serial_buf[2]) != ESP_OK || sfm_crc(&serial_buf[3], 2, serial_buf[5]) != ESP_OK) { return FLOW_SERIAL_INVALID; }
     // Convert to 32 bit number and return
-    uint32_t serial_no = serial_buf[0] | serial_buf[1] << 8 | serial_buf[3] << 16 | serial_buf[4] << 24;
+    uint32_t serial_no = serial_buf[4] | serial_buf[3] << 8 | serial_buf[1] << 16 | serial_buf[0] << 24;
     return serial_no;
 }
+uint16_t sfm_read_offset() {
+    uint8_t offset_cmd[] = { 0x30, 0xDF };
+    esp_err_t write_err = i2c_master_write_to_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, offset_cmd, sizeof(offset_cmd), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    if(write_err != ESP_OK) { return FLOW_SERIAL_INVALID; }
+    // Read the 2 byte flow offset value
+    uint8_t offset_buf[2];
+    esp_err_t read_err = i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, offset_buf, sizeof(offset_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    if(read_err != ESP_OK) { return FLOW_SERIAL_INVALID; }
+    uint16_t offset = offset_buf[1] | offset_buf[0] << 8;
+    return offset;
+}
+uint16_t sfm_read_scale() {
+    uint8_t scale_cmd[] = { 0x30, 0xDE };
+    esp_err_t write_err = i2c_master_write_to_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, scale_cmd, sizeof(scale_cmd), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    if(write_err != ESP_OK) { return FLOW_SERIAL_INVALID; }
+    // Read the 2 byte flow scale value
+    uint8_t scale_buf[2];
+    esp_err_t read_err = i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, scale_buf, sizeof(scale_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    if(read_err != ESP_OK) { return FLOW_SERIAL_INVALID; }
+    // Return as 16 bit number 
+    uint16_t scale = scale_buf[1] | scale_buf[0] << 8;
+    return scale;
+}
+
 uint16_t sfm_read_measure() {
+    // Send a start measure for every read, as recommended by Sensirion
+    //sfm_start_measure();
     // Read the 2 byte raw measurement value + 1 byte CRC
     uint8_t value_buf[3];
     esp_err_t read_err = i2c_master_read_from_device(I2C_MASTER_NUM, I2C_SFM_ADDRESS, value_buf, sizeof(value_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
     if(read_err != ESP_OK) { return FLOW_VALUE_NOT_AVAIL; }
+    //ESP_LOGI(TAG, "Value bytes: %u %u %u", value_buf[0], value_buf[1], value_buf[2]);
     // Verify the CRC value
-    if(sfm_crc(&value_buf[0], 2, value_buf[3]) != ESP_OK) { return FLOW_VALUE_INVALID_CRC; }
+    if(sfm_crc(&value_buf[0], 2, value_buf[2]) != ESP_OK) { return FLOW_VALUE_INVALID_CRC; }
     // Convert to 16 bit number and return
-    uint16_t value = value_buf[0] | value_buf[1] << 8;
+    uint16_t value = value_buf[1] | value_buf[0] << 8;
     return value;
 }
 esp_err_t sfm_start_measure() {
@@ -147,6 +177,7 @@ esp_err_t sfm_crc(const uint8_t* buf, uint8_t buf_len, uint8_t checksum) {
             else crc = (crc << 1);
         }
     }
+    //ESP_LOGI(TAG, "CRC expected: %u Got: %u", checksum, crc);
     if (crc != checksum) return ESP_ERR_INVALID_CRC;
     else return ESP_OK;
 }
