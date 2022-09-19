@@ -2216,10 +2216,11 @@
     )
   )
 
-  (gr_circle (center 76.2 88.9) (end 78.74 91.44) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp 0d7f2264-aef2-4b9d-bc45-d6774c875360))
-  (gr_circle (center 137.16 134.62) (end 139.7 137.16) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp 474961e4-9caf-4e2b-ac84-107488ee2bdd))
+  (gr_circle (center 76.2 88.9) (end 79.2 88.9) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp 0d7f2264-aef2-4b9d-bc45-d6774c875360))
+  (gr_circle (center 160.02 149.86) (end 163.02 149.86) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp 474961e4-9caf-4e2b-ac84-107488ee2bdd))
+  (gr_circle (center 139.7 88.9) (end 142.7 88.9) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp 5f24cb34-998e-4be7-9355-2cd0ff4b481e))
   (gr_rect (start 58.42 63.5) (end 165.1 157.48) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp 82258cfc-526b-4f2c-a8b4-78bbe3dd5890))
-  (gr_circle (center 66.04 149.86) (end 68.58 152.4) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp f14d7a3b-1c20-4a46-8fd4-00a9aa47dae5))
+  (gr_circle (center 66.04 149.86) (end 69.04 149.86) (layer "Edge.Cuts") (width 0.1) (fill none) (tstamp f14d7a3b-1c20-4a46-8fd4-00a9aa47dae5))
 
   (segment (start 144.86 124.44) (end 144.78 124.52) (width 0.25) (layer "F.Cu") (net 1) (tstamp 1e51f78e-290b-4f40-93da-bdbba51c0499))
   (segment (start 144.84 144.78) (end 144.78 144.72) (width 0.25) (layer "F.Cu") (net 1) (tstamp 22ce81d6-245b-42ec-a098-83181578be26))
